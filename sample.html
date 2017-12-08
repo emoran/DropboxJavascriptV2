@@ -1,0 +1,135 @@
+<html>
+	<head>
+		<link href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css"/>
+	</head>
+	
+	<input type="file" id="files" name="files[]" multiple />
+  	<label id="percentaje"/>
+	<ul id="fileList">
+
+	</ul>
+
+  	<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+  	<script src="https://unpkg.com/sweetalert2@7.0.8/dist/sweetalert2.all.js"></script>
+  	<script src="https://unpkg.com/dropbox/dist/Dropbox-sdk.min.js"></script>
+  	
+  	
+  	<script>
+
+  		var dbx = new Dropbox({ accessToken: '' });
+
+	  	$( document ).ready(function() {
+	  		console.log('::: Corpogas Operaciones Dropbox API v2 ::::');
+	  		listFiles();
+		});
+
+		function listFiles(){
+			
+			dbx.filesListFolder({path: "/"})
+			.then(function(response) {
+			    console.log(response);
+
+			    getSharedLink(response.entries);
+
+			    /*$.each( response.entries, function( index, value ){
+				 	//console.log(value.name);
+				 	var sharedLink = 
+
+				 	console.log('shared: '+sharedLink.link);
+
+				 	$("#fileList").append("<li><a href='"+sharedLink.url+"' target='_blank'>"+value.name+"</a></li>");
+				});*/
+			    //dbx.getThumbnail(response.entries[0].path_lower);
+			})
+		}
+
+		function generateSharedLink(filePath){
+			dbx.sharingCreateSharedLinkWithSettings({path:filePath, settings: {expires: "2018-12-10T00:00:00Z"}})
+		    .then(function(response) {
+		      console.log(response);
+		    })
+		    .catch(function(error) {
+		      console.log(error);
+		    });
+		}
+
+		function deleteFile(path){
+			dbx.filesDelete({ path: path})
+			.then(function(response) {
+		      console.log(response);
+		    })
+		    .catch(function(error) {
+		      console.log(error);
+		    });
+		}
+ 		
+ 		function handleFileSelect(evt) {
+ 			var files = evt.target.files; // FileList object
+
+ 			// files is a FileList of File objects
+ 			for (var i = 0, f; f = files[i]; i++) {
+ 				$.ajax({
+ 					url: 'https://content.dropboxapi.com/2/files/upload',
+ 					type: 'post',
+ 					data: f,
+ 					processData: false,
+ 					contentType: 'application/octet-stream',
+ 					headers: {
+ 						"Authorization": "Bearer ",
+ 						"Dropbox-API-Arg": '{"path": "/' + f.name + '","mode": "add"}'
+ 					},
+ 					xhr: function() {
+				        var xhr = new window.XMLHttpRequest();
+
+				        // Upload progress
+				        xhr.upload.addEventListener("progress", function(evt){
+				            if (evt.lengthComputable) {
+				                var percentComplete = evt.loaded / evt.total;
+				                //Do something with upload progress
+				                console.log((percentComplete * 100)+"%");
+				                $("#percentaje").text((percentComplete * 100)+"%");
+				            }
+				       }, false);
+
+				       return xhr;
+				    },
+ 					success: function (data){
+ 						console.log(data);
+ 						swal("Documento almacenado", "Documento almacenado en Dropbox", "success")
+ 					},
+ 					error: function (data) {
+ 						console.log(data.responseText);
+ 					}
+ 				});
+ 			}
+ 		}
+
+ 		function getSharedLink(entries){
+ 			console.log('Generating shared Link');
+ 			$.each(entries, function( index, value ){
+ 				console.log('service for: '+value.name);
+ 				
+ 				$.ajax({
+				    type: "POST",
+				    url: "https://api.dropboxapi.com/2/files/get_temporary_link",
+				    headers: {
+						"Authorization": "Bearer "
+					},
+				    // The key needs to match your method's input parameter (case-sensitive).
+				    data: '{"path": "'+value.path_lower+'"}',
+				    contentType: "application/json; charset=utf-8",
+				    dataType: "json",
+				    success: function(data){
+				    	$("#fileList").append("<li><a href='"+data.link+"' target='_blank'>"+value.name+"</a></li>");
+				    },
+				    failure: function(errMsg) {
+				        console.log(errMsg);
+				    }
+				});
+			});
+ 		}
+
+ 		document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+	</script>
+</html>
